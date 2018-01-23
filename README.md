@@ -58,7 +58,7 @@ sudo apt-get install libreadline-dev libconfig-dev libssl-dev lua5.2 liblua5.2-d
 
 #کد نصب بوت
 cd $HOME
-git clone https://github.com/tabchis/Tabchi.git
+git clone https://github.com/tabchis/tabadol.git
 cd Tabchi
 ./launch.sh
 
