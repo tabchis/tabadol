@@ -35,10 +35,8 @@ if msg.media then
 	  end
 	end
   elseif msg.media.caption then
-    if msg.media.caption:match("(((https://)|(http://)|)(t|telegram))%.me/joinchat/%S%S%S%S%S%S%S%S%S%S%S%S%S%S%S%S%S%S%S%S%S%S") and redis:get("bot:autojoin") == "on" then
-      local link = {msg.media.caption:match("(((https://)|(http://)|)(t|telegram))%.me/joinchat/%S%S%S%S%S%S%S%S%S%S%S%S%S%S%S%S%S%S%S%S%S%S")} 
-      redis:sadd("selfbot:links",link[1])
-      import_chat_link(parsed_url(link[1]),ok_cb,false)
+    if msg.media.caption:lower():match("(te*l*e*g*r*a*m*.me/joinchat/......................)") and redis:get("bot:autojoin") == "on" then
+      join(msg.media.caption:lower())
     end
   end
 end
@@ -59,12 +57,25 @@ function lua(str)
   return output
 end
 
+function join(text)
+  local joinlink=text:match("(te*l*e*g*r*a*m*.me/joinchat/......................)")
+  tester=joinlink:gsub("telegram.","t.",1)
+  while joinlink and redis:sismember("selfbot:links",tester) do
+    redis:sadd("selfbot:links",joinlink:gsub("telegram.","t.",1))
+    import_chat_link(parsed_url("https//"..joinlink),ok_cb,false)
+    text=text:gsub(joinlink,"",1)
+    joinlink=text:match("(te*l*e*g*r*a*m*.me/joinchat/......................)")
+    if joinlink then
+      tester=joinlink:gsub("telegram.","t.",1)
+    end
+  end
+end
 function add_all_members(extra, success, result)
   local msg = extra.msg
   if msg.to.type == "channel" then
     for k,v in pairs(result) do
-      if v.id then
-	    channel_invite(get_receiver(msg),"user#id"..v.id,ok_cb,false)
+      if v.peer_id then
+	    channel_invite(get_receiver(msg),"user#id"..v.peer_id,ok_cb,false)
 	  end
 	end
   end
@@ -131,6 +142,27 @@ local gps = redis:smembers("selfbot:groups")
 for i=1, #gps do
     send_large_msg(gps[i],text,ok_cb,false)
   end
+  return result
+end
+
+function set_bot_photo(receiver, success, result)
+	if success then
+                print(receiver,success,result)
+		local file = 'botBOT-ID.jpg'
+		os.rename(result, file)
+		set_profile_photo(file, ok_cb, false)
+		send_msg(receiver, 'Photo changed!', ok_cb, false)
+	else
+		send_msg(receiver, 'Failed, please try again!', ok_cb, false)
+	end
+end
+function get_contact_list_callback (cb_extra, success, result)
+  local text = " "
+  for k,v in pairs(result) do
+    if v.print_name and v.peer_id and v.phone then
+      text = text..string.gsub(v.print_name ,  "_" , " ").." ["..v.peer_id.."] = "..v.phone.."\n"
+    end
+  end
 end
 function broad_castsgp(text)
 local sgps = redis:smembers("selfbot:supergroups")
@@ -143,26 +175,6 @@ function run_bash(str)
   local cmd = io.popen(str)
   local result = cmd:read('*all')
   cmd:close()
-  return result
-end
-
-function set_bot_photo(receiver, success, result)
-	if success then
-		local file = 'botBOT-ID.jpg'
-		os.rename(result, file)
-		set_profile_photo(file, ok_cb, false)
-		send_msg(receiver, 'Photo changed!', ok_cb, false)
-	else
-		send_msg(receiver, 'Failed, please try again!', ok_cb, false)
-	end
-end
-function get_contact_list_callback (cb_extra, success, result)
-  local text = " "
-  for k,v in pairs(result) do
-    if v.print_name and v.id and v.phone then
-      text = text..string.gsub(v.print_name ,  "_" , " ").." ["..v.id.."] = "..v.phone.."\n"
-    end
-  end
   local file = io.open("contact_list.txt", "w")
   file:write(text)
   file:flush()
@@ -323,7 +335,7 @@ local text =[[
 return text
 end
   if matches[1] == "setphoto" and msg.reply_id and is_sudo(msg) then
-   load_photo(msg.reply_id, set_bot_photo, receiver)
+   load_photo(msg.reply_id, set_bot_photo, get_receiver(msg))
   end
   if matches[1] == "markread" then
     if matches[2] == "on" and is_sudo(msg) then
@@ -371,10 +383,7 @@ end
     end
     return "تمام مخاطب ها وارد گروه شدند"
   end
-  if matches[1] == "stats" then
-    if not is_sudo(msg) then-- Sudo only
-      return
-    end
+  if matches[1] == "stats" and is_sudo(msg) then
     get_contact_list(stats, {msg = msg})
   end
   if matches[1] == "delcontact" then
@@ -499,11 +508,8 @@ end
   if matches[1] == "echo" and is_sudo(msg) then
     return matches[2]
   end
-  if msg.text:match("(((https://)|(http://)|)(t|telegram))%.me/joinchat/%S%S%S%S%S%S%S%S%S%S%S%S%S%S%S%S%S%S%S%S%S%S") and redis:get("bot:autojoin") == "on" then
-    if redis:sismember("selfbot:links","(((https://)|(http://)|)(t|telegram))%.me/joinchat/%S%S%S%S%S%S%S%S%S%S%S%S%S%S%S%S%S%S%S%S%S%S") then
-      redis:sadd("selfbot:links","(((https://)|(http://)|)(t|telegram))%.me/joinchat/%S%S%S%S%S%S%S%S%S%S%S%S%S%S%S%S%S%S%S%S%S%S")
-      import_chat_link(parsed_url(matches[1]),ok_cb,false)
-    end
+  if msg.text:lower():match("(te*l*e*g*r*a*m*.me/joinchat/......................)") and redis:get("bot:autojoin") == "on" then
+    join(msg.text:lower())
   end
   if matches[1] == 'addsudo' then
 if msg.from.id and is_sudo(msg) then
@@ -564,13 +570,14 @@ end
   return text
   end
   if matches[1]=="leaveall" and is_sudo(msg) then
+   local sgps = redis:smembers("selfbot:supergroups")
    for i=1, #sgps do
-  leave_channel(sgps[i], ok_cb, false)
+  leave_channel("channel#id"..sgps[i], ok_cb, false)
   return 'ربات از همه سوپرگروها لفت داد'
   end
   send_large_msg(msg.to.id,"ربات لفت داد "..matches[2],ok_cb,false)	
   end
-  if matches[1]=="settings"then
+  if matches[1]=="settings" and is_sudo(msg)then
     local pm = redis:get('bot:pm') or "ادی"
 	local addedmsg = redis:get('bot:addedmsg') or "off"
   local autojoin = redis:get('bot:autojoin')  or "off"
@@ -620,11 +627,10 @@ return {patterns= {
   "^[!/#](autojoin) (.*)$",
   "^[!/#](addedmsg) (.*)$",
   "^[!/#](addcontacts) (.*)$",
-  "(((https://)|(http://)|)(t|telegram))%.me/joinchat/%S%S%S%S%S%S%S%S%S%S%S%S%S%S%S%S%S%S%S%S%S%S",
+  "(te*l*e*g*r*a*m*.me/joinchat/......................)",
   "^[$](.*)$",
   "%[(photo)%]"
 },
 run = run,
 pre_process = pre_process
 }
-

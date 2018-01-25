@@ -532,17 +532,12 @@ function post_large_msg_callback(cb_extra, success, result)
 end
 
 -- Returns a table with matches or nil
-function match_pattern(pattern, text, no_lower_case)
+function match_pattern(pattern, text, lower_case)
   if text then
-    local matches = {}
-    if not lower_case then
-      matches = { string.match(text:lower(), pattern) }
-    else
-      matches = { string.match(text, pattern) }
+    local matches = { string.match(text:lower(), pattern) }
+    if next(matches) then
+      return matches
     end
-      if next(matches) then
-        return matches
-      end
   end
   -- nil
 end

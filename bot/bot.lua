@@ -35,7 +35,7 @@ function on_msg_receive (msg)
 end
 
 function ok_cb(extra, success, result)
-
+  print(extra,success,result)
 end
 
 function on_binlog_replay_end()
@@ -176,18 +176,11 @@ function match_plugin(plugin, plugin_name, msg)
     local matches = match_pattern(pattern, msg.text)
     if matches then
       print("msg matches: ", pattern)
-
-      if is_plugin_disabled_on_chat(plugin_name, receiver) then
-        return nil
-      end
       -- Function exists
       if plugin.run then
-        -- If plugin is for privileged users only
-        if not warns_user_not_allowed(plugin, msg) then
-          local result = plugin.run(msg, matches)
-          if result then
-            send_large_msg(receiver, result)
-          end
+        local result = plugin.run(msg, matches)
+        if result then
+          send_large_msg(receiver, result)
         end
       end
       -- One patterns matches
